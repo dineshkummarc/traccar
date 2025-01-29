@@ -270,6 +270,8 @@ public class Gl200TextProtocolDecoder extends BaseProtocolDecoder {
             position.setDeviceTime(time);
         }
 
+        getLastLocation(position, position.getDeviceTime());
+
         return position;
     }
 
@@ -630,7 +632,7 @@ public class Gl200TextProtocolDecoder extends BaseProtocolDecoder {
             reportMaskExt = Long.parseLong(v[index - 1], 16);
         }
         if (BitUtil.check(reportMaskExt, 0) && !v[index++].isEmpty()) {
-            position.set("adBlueLevel", Integer.parseInt(v[index - 1]));
+            position.set("adBlueLevel", Double.parseDouble(v[index - 1].substring(1)));
         }
         if (BitUtil.check(reportMaskExt, 1) && !v[index++].isEmpty()) {
             position.set("axleWeight1", Integer.parseInt(v[index - 1]));
@@ -1499,10 +1501,13 @@ public class Gl200TextProtocolDecoder extends BaseProtocolDecoder {
             .number("(d{1,3})?,")                // battery
             .or()
             .number("(d{1,7}.d)?,")              // odometer
+            .groupBegin()
+            .number("(dddd)(dd)(dd)")            // event date (yyyymmdd)
+            .number("(dd)(dd)(dd),")             // event time (hhmmss)
+            .groupEnd("?")
             .groupEnd()
             .number("(dddd)(dd)(dd)")            // date (yyyymmdd)
-            .number("(dd)(dd)(dd)")              // time (hhmmss)
-            .text(",")
+            .number("(dd)(dd)(dd),")             // time (hhmmss)
             .number("(xxxx)")                    // count number
             .text("$").optional()
             .compile();
@@ -1541,6 +1546,8 @@ public class Gl200TextProtocolDecoder extends BaseProtocolDecoder {
         if (parser.hasNext()) {
             position.set(Position.KEY_ODOMETER, parser.nextDouble() * 1000);
         }
+
+        parser.skip(6); // event time
 
         decodeDeviceTime(position, parser);
 
